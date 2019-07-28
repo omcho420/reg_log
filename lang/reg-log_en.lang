@@ -1,0 +1,10 @@
+#if defined _reg_log_lang_included
+	#endinput
+#endif
+#define _reg_log_lang_included
+
+new
+	LANG_CONNECTION[] =			"Connection to database was successful.",
+	LANG_CONNECTION_2[] =		"Couldn't connect to MySQL database.",
+	LANG_REGISTER[] = 			"Welcome",
+	LANG_LOGIN[] =				"Welcome back";

@@ -6,6 +6,10 @@
 
 #include <a_samp>
 
+#if !defined _reg_log_lang_included
+	#include <reg-log_en.lang>
+#endif
+
 #if !defined mysql_included
 	#include <a_mysql>
 
@@ -49,9 +53,9 @@ new MySQL:dbHandle;
 #endif	
 {
 	if(mysql_errno((dbHandle = mysql_connect(MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DATABASE)))) {
-		print("MYSQL >> Couldn't connect to MySQL database.");
+		printf("MYSQL >> %s", LANG_CONNECTION_2);
 	} else {
-		print("MYSQL >> Connection to database was successful.");
+		printf("MYSQL >> %s", LANG_CONNECTION);
 	}
 	#if !defined _inc_y_hooks && !defined _INC_y_hooks\
 		&& defined mysql_OnGameModeInit
@@ -114,12 +118,12 @@ new MySQL:dbHandle;
 
 	new 
 		query[128],
-		name[MAX_PLAYER_NAME + 1];
-	GetPlayerName(playerid, name, sizeof name);
+		p_name[MAX_PLAYER_NAME + 1];
+	GetPlayerName(playerid, p_name, sizeof p_name);
 
 	mysql_format(dbHandle, query, sizeof query,
 		"SELECT * FROM `players` WHERE `NAME` = '%s' LIMIT 1",
-		name);
+		p_name);
 	mysql_pquery(dbHandle, query, "f_CheckPlayerData", "ii", playerid, p_racecheck[playerid]);
 
 	#if !defined _inc_y_hooks && !defined _INC_y_hooks\
@@ -184,13 +188,14 @@ new MySQL:dbHandle;
 			if(!response) return Kick(playerid);
 			if(response) {
 				if(p_Logged{playerid} == true) return Kick(playerid);
-				new name[MAX_PLAYER_NAME + 1], str[34];
-				GetPlayerName(playerid, name, sizeof name);
+				new 
+					p_name[MAX_PLAYER_NAME + 1], d_string[25 + sizeof LANG_REGISTER];
+				GetPlayerName(playerid, p_name, sizeof p_name);
 				if(strlen(inputtext) > 24 || strlen(inputtext) < 3) {
 
-   					format(str, sizeof str, "Welcome %s", name);
+   					format(d_string, sizeof d_string, "%s %s", LANG_REGISTER, p_name);
    					#if USE_DIALOG_ENUM
-    					ShowPlayerDialog(playerid, D_REGISTER, DIALOG_STYLE_PASSWORD, "Register", str, "Register", "Cancel");
+    					ShowPlayerDialog(playerid, D_REGISTER, DIALOG_STYLE_PASSWORD, "Register", d_string, "Register", "Cancel");
     				#endif
 				}
 				else {
@@ -202,7 +207,7 @@ new MySQL:dbHandle;
 					    p_Salt[playerid][i] = random(100) + 50;
 					}
 
-					GetPlayerName(playerid, name, sizeof name);
+					GetPlayerName(playerid, p_name, sizeof p_name);
 
 					p_Salt[playerid][10] = 0;
 					SHA256_PassHash(inputtext, p_Salt[playerid], p_Password[playerid], 65);
@@ -213,7 +218,7 @@ new MySQL:dbHandle;
 					mysql_format(dbHandle, query, sizeof query,
 						"INSERT INTO `players` (`NAME`,`PASSWORD`,`SALT`) \
 							VALUES('%e','%e','%e')",
-						name, p_Password[playerid], p_Salt[playerid]);
+						p_name, p_Password[playerid], p_Salt[playerid]);
 					mysql_tquery(dbHandle, query, "f_GiveAccountId", "i", playerid);
 					SetSpawnInfo(playerid, 0, 1, 2495.0720, -1687.5278, 13.5150, 359.6696, 0, 0, 0, 0, 0, 0);
 					SpawnPlayer(playerid);
@@ -224,24 +229,23 @@ new MySQL:dbHandle;
 			if(!response) return Kick(playerid);
 			if(response) {
 		        new 
-		        	buf[65];
+		        	buf[65], name[MAX_PLAYER_NAME + 1];
 		        SHA256_PassHash(inputtext, p_Salt[playerid], buf, 65);
+		        GetPlayerName(playerid, name, sizeof name);
 		       
 		        if(strcmp(buf, p_Password[playerid]) == 0) {
 		        	new 
-		        		query[124], name[MAX_PLAYER_NAME + 1];
-					GetPlayerName(playerid, name, sizeof name);
+		        		query[124];
 
 					mysql_format(dbHandle, query, sizeof query, "SELECT * FROM `players` WHERE `NAME` = '%e' LIMIT 0,1", name);
 					mysql_tquery(dbHandle, query, "f_OnPlayerLogin", "i", playerid);
 				}
 				else {
 					new
-						dialog[40], name[MAX_PLAYER_NAME + 1];
-					GetPlayerName(playerid, name, sizeof name);
-			   		format(dialog, sizeof dialog, "Welcome back %s", name);
+						d_str[25 + sizeof LANG_LOGIN];
+			   		format(d_str, sizeof d_str, "%s %s", LANG_LOGIN, name);
 			   		#if USE_DIALOG_ENUM
-			    		ShowPlayerDialog(playerid, D_LOGIN, DIALOG_STYLE_PASSWORD, "Login", dialog, "Login", "Cancel");
+			    		ShowPlayerDialog(playerid, D_LOGIN, DIALOG_STYLE_PASSWORD, "Login", d_str, "Login", "Cancel");
 			    	#endif
 				}
 			}
@@ -301,7 +305,7 @@ public f_CheckPlayerData(playerid, race_check) {
 
 	static 
 		rows,
-		dialog[124],
+		d_str[26 + sizeof LANG_LOGIN],
 		name[MAX_PLAYER_NAME + 1]
 		; 
 
@@ -310,18 +314,18 @@ public f_CheckPlayerData(playerid, race_check) {
 	cache_get_row_count(rows);
 
 	if(!rows) {
-   		format(dialog, sizeof dialog, "Welcome %s", name);
+   		format(d_str, sizeof d_str, "%s %s", LANG_REGISTER, name);
    		#if USE_DIALOG_ENUM
-    		ShowPlayerDialog(playerid, D_REGISTER, DIALOG_STYLE_PASSWORD, "Register", dialog, "Register", "Cancel");
+    		ShowPlayerDialog(playerid, D_REGISTER, DIALOG_STYLE_PASSWORD, "Register", d_str, "Register", "Cancel");
     	#endif
 	}
 	else {
 		cache_get_value(0, "password", p_Password[playerid], 65);
         cache_get_value(0, "salt", p_Salt[playerid], 11);
 
-   		format(dialog, sizeof dialog, "Welcome back %s", name);
+   		format(d_str, sizeof d_str, "%s %s", LANG_LOGIN, name);
    		#if USE_DIALOG_ENUM
-    		ShowPlayerDialog(playerid, D_LOGIN, DIALOG_STYLE_PASSWORD, "Login", dialog, "Login", "Cancel");
+    		ShowPlayerDialog(playerid, D_LOGIN, DIALOG_STYLE_PASSWORD, "Login", d_str, "Login", "Cancel");
     	#endif
     }
 	return true;
