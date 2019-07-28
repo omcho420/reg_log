@@ -8,13 +8,12 @@
 
 #if !defined mysql_included
 	#include <a_mysql>
+
+	#define MYSQL_HOST 		"localhost"
+	#define MYSQL_USER 		"root"
+	#define MYSQL_PASS 		""
+	#define MYSQL_DATABASE 	"register_db"
 #endif
-
-#define MYSQL_HOST 		"localhost"
-#define MYSQL_USER 		"root"
-#define MYSQL_PASS 		""
-#define MYSQL_DATABASE 	"database_name"
-
 new MySQL:dbHandle;
 
 #if !defined USE_DIALOG_ENUM
@@ -27,11 +26,11 @@ new MySQL:dbHandle;
 
 #if USE_PLAYER_VARS
 	new
-		p_ID[MAX_PLAYERS],
-		p_Password[MAX_PLAYERS][65],
-		p_Salt[MAX_PLAYERS][11],
-		p_racecheck[MAX_PLAYERS],
-		bool: p_Logged[[MAX_PLAYERS char]
+		p_ID 			[MAX_PLAYERS],
+		p_Password		[MAX_PLAYERS][65],
+		p_Salt			[MAX_PLAYERS][11],
+		p_racecheck		[MAX_PLAYERS],
+		bool: p_Logged 	[MAX_PLAYERS char]
 		;
 #endif
 
@@ -101,7 +100,7 @@ new MySQL:dbHandle;
 	#if defined mysql_OnGameModeExit
 	    forward mysql_OnGameModeExit();
 	#endif
-#endif 
+#endif	    
 
 // -- // OnPlayer_*
 
@@ -119,7 +118,7 @@ new MySQL:dbHandle;
 	GetPlayerName(playerid, name, sizeof name);
 
 	mysql_format(dbHandle, query, sizeof query,
-		"SELECT * FROM `players` WHERE `name` = '%s' LIMIT 1",
+		"SELECT * FROM `players` WHERE `NAME` = '%s' LIMIT 1",
 		name);
 	mysql_pquery(dbHandle, query, "f_CheckPlayerData", "ii", playerid, p_racecheck[playerid]);
 
@@ -182,15 +181,16 @@ new MySQL:dbHandle;
 {
 	switch(dialogid) {
 		case D_REGISTER: {
+			if(!response) return Kick(playerid);
 			if(response) {
-				if(p_playerlogged{playerid} == true) return Kick(playerid);
-				new name[MAX_PLAYER_NAME + 1];
+				if(p_Logged{playerid} == true) return Kick(playerid);
+				new name[MAX_PLAYER_NAME + 1], str[34];
 				GetPlayerName(playerid, name, sizeof name);
 				if(strlen(inputtext) > 24 || strlen(inputtext) < 3) {
 
-   					format(szNormalString, sizeof szNormalString, "Welcome %s", name);
+   					format(str, sizeof str, "Welcome %s", name);
    					#if USE_DIALOG_ENUM
-    					ShowPlayerDialog(playerid, D_REGISTER, DIALOG_STYLE_PASSWORD, "Register", szNormalString, "Register", "Cancel");
+    					ShowPlayerDialog(playerid, D_REGISTER, DIALOG_STYLE_PASSWORD, "Register", str, "Register", "Cancel");
     				#endif
 				}
 				else {
@@ -202,7 +202,6 @@ new MySQL:dbHandle;
 					    p_Salt[playerid][i] = random(100) + 50;
 					}
 
-					new name[MAX_PLAYER_NAME + 1];
 					GetPlayerName(playerid, name, sizeof name);
 
 					p_Salt[playerid][10] = 0;
@@ -210,45 +209,35 @@ new MySQL:dbHandle;
 
 					GetPlayerIp(playerid, pIP, sizeof pIP);
 
-					new query[124];
+					new query[156];
 					mysql_format(dbHandle, query, sizeof query,
-						"INSERT INTO `players` (`name`,`password`,`salt`) \
+						"INSERT INTO `players` (`NAME`,`PASSWORD`,`SALT`) \
 							VALUES('%e','%e','%e')",
 						name, p_Password[playerid], p_Salt[playerid]);
 					mysql_tquery(dbHandle, query, "f_GiveAccountId", "i", playerid);
+					SetSpawnInfo(playerid, 0, 1, 2495.0720, -1687.5278, 13.5150, 359.6696, 0, 0, 0, 0, 0, 0);
+					SpawnPlayer(playerid);
 				}
 			}
 		}
 		case D_LOGIN: {
-			if(!response) {
-				new
-					dialog[124]
-					name[MAX_PLAYER_NAME + 1];
-				;
-				GetPlayerName(playerid, name, sizeof name);
-			   	format(dialog, sizeof dialog, "Welcome back %s", name);
-			   	#if USE_DIALOG_ENUM
-			    	ShowPlayerDialog(playerid, D_LOGIN, DIALOG_STYLE_PASSWORD, "Login", dialog, "Login", "Cancel");
-			    #endif
-			}
+			if(!response) return Kick(playerid);
 			if(response) {
-
 		        new 
-		        	buf[65]
-		        ;
+		        	buf[65];
 		        SHA256_PassHash(inputtext, p_Salt[playerid], buf, 65);
 		       
 		        if(strcmp(buf, p_Password[playerid]) == 0) {
-		        	new query[124], name[MAX_PLAYER_NAME + 1];
+		        	new 
+		        		query[124], name[MAX_PLAYER_NAME + 1];
 					GetPlayerName(playerid, name, sizeof name);
 
-					mysql_format(dbHandle, query, sizeof query, "SELECT * FROM `players` WHERE `name` = '%e' LIMIT 0,1", name);
+					mysql_format(dbHandle, query, sizeof query, "SELECT * FROM `players` WHERE `NAME` = '%e' LIMIT 0,1", name);
 					mysql_tquery(dbHandle, query, "f_OnPlayerLogin", "i", playerid);
 				}
 				else {
 					new
 						dialog[40], name[MAX_PLAYER_NAME + 1];
-					;
 					GetPlayerName(playerid, name, sizeof name);
 			   		format(dialog, sizeof dialog, "Welcome back %s", name);
 			   		#if USE_DIALOG_ENUM
@@ -282,8 +271,8 @@ new MySQL:dbHandle;
 
 // -- // f_*
 
-forward OnPlayerLogin(playerid);
-public OnPlayerLogin(playerid) {
+forward f_OnPlayerLogin(playerid);
+public f_OnPlayerLogin(playerid) {
 
 	new iRows;
 
@@ -291,7 +280,9 @@ public OnPlayerLogin(playerid) {
 		cache_get_value_name(0, "id", p_ID[playerid]);
 	}
 
-	p_playerlogged{playerid} = true;
+	p_Logged{playerid} = true;
+	SetSpawnInfo(playerid, 0, 1, 2495.0720, -1687.5278, 13.5150, 359.6696, 0, 0, 0, 0, 0, 0);
+	SpawnPlayer(playerid);
 	return true;
 }
 
@@ -335,6 +326,8 @@ public f_CheckPlayerData(playerid, race_check) {
     }
 	return true;
 }
+
 // -- // undef_*
+
 #undef USE_DIALOG_ENUM
 #undef USE_PLAYER_VARS
